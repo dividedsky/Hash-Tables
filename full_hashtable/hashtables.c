@@ -90,15 +90,22 @@ HashTable *create_hash_table(int capacity)
  */
 void hash_table_insert(HashTable *ht, char *key, char *value)
 {
+  printf("in insert method\n");
   unsigned int h = hash(key, ht->capacity);
+  printf("hashed index is %d\n", h);
   LinkedPair *pair = create_pair(key, value);
   if (ht->storage[h] == NULL) {
     // index is empty
+    printf("storage is null\n");
     ht->storage[h] = pair;
   } else {
     // index is not empty, traverse list looking for key or NULL next
     LinkedPair *current = ht->storage[h];
-    while (1) {
+    printf("current:\n");
+    printf("\tkey: %s\n", current->key);
+    printf("\tvalue: %s\n", current->value);
+    printf("\tnext: %p\n", current->next);
+    while (current) {
       if (current->next == NULL) {
         // if we've reached the end of the list, add our new pair
         current->next = pair;
@@ -106,6 +113,7 @@ void hash_table_insert(HashTable *ht, char *key, char *value)
       } 
       if (strcmp(current->key, key) == 0) {
         current->value = value;
+        printf("break!\n");
         break;
       }
     }
@@ -152,6 +160,18 @@ void hash_table_remove(HashTable *ht, char *key)
  */
 char *hash_table_retrieve(HashTable *ht, char *key)
 {
+  printf("in retrieval\n");
+  unsigned int h = hash(key, ht->capacity);
+  LinkedPair *current = ht->storage[h];
+  printf("pair initialized. key: %s, value: %s\n", current->key, current->value);
+  while (current) {
+    if (strcmp(current->key, key) == 0) {
+      return current->value;
+    } else {
+      current = current->next;
+      printf("moved to next node. key: %s, value: %s\n", current->key, current->value);
+    }
+  }
   return NULL;
 }
 
@@ -162,6 +182,25 @@ char *hash_table_retrieve(HashTable *ht, char *key)
  */
 void destroy_hash_table(HashTable *ht)
 {
+  // loop through all indexes
+  for (int i = 0; i < ht->capacity; i++) {
+    // if the index is empty, free it
+    if (ht->storage[i] != NULL) {
+      LinkedPair *current = ht->storage[i];
+      LinkedPair *previous;
+      while (current->next != NULL) {
+        previous = current;
+        current = current->next;
+        free(previous);
+      }
+      free(current);
+    }
+    free(ht->storage[i]); // wait, aren't we not supposed to do this?
+
+    // if not, traverse list and free each pair
+  }
+  // free storage;
+  // free ht
 
 }
 
@@ -175,8 +214,21 @@ void destroy_hash_table(HashTable *ht)
  */
 HashTable *hash_table_resize(HashTable *ht)
 {
-  HashTable *new_ht;
+  // initialize new ht
+  HashTable *new_ht = malloc(sizeof(HashTable));
+  new_ht->capacity = ht->capacity * 2;
+  new_ht->storage = malloc(new_ht->capacity * sizeof(LinkedPair));
 
+  // loop through every index in old table
+  for (int i = 0; i < ht->capacity; i++) {
+    // if it is not empty, traverse list
+    while (ht->storage[i]) {
+      // rehash every pair and store in new table
+      hash_table_insert(new_ht, ht->storage[i]->key, ht->storage[i]->value);
+    }
+  }
+
+  // destroy old table
   return new_ht;
 }
 
