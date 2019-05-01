@@ -73,8 +73,9 @@ unsigned int hash(char *str, int max)
  */
 HashTable *create_hash_table(int capacity)
 {
-  HashTable *ht;
-
+  HashTable *ht = malloc(sizeof(HashTable));
+  ht->capacity = capacity;
+  ht->storage = calloc(capacity, sizeof(LinkedPair));
   return ht;
 }
 
@@ -89,7 +90,26 @@ HashTable *create_hash_table(int capacity)
  */
 void hash_table_insert(HashTable *ht, char *key, char *value)
 {
-
+  unsigned int h = hash(key, ht->capacity);
+  LinkedPair *pair = create_pair(key, value);
+  if (ht->storage[h] == NULL) {
+    // index is empty
+    ht->storage[h] = pair;
+  } else {
+    // index is not empty, traverse list looking for key or NULL next
+    LinkedPair *current = ht->storage[h];
+    while (1) {
+      if (current->next == NULL) {
+        // if we've reached the end of the list, add our new pair
+        current->next = pair;
+        break;
+      } 
+      if (strcmp(current->key, key) == 0) {
+        current->value = value;
+        break;
+      }
+    }
+  }
 }
 
 /*
@@ -102,7 +122,24 @@ void hash_table_insert(HashTable *ht, char *key, char *value)
  */
 void hash_table_remove(HashTable *ht, char *key)
 {
-
+  unsigned int h = hash(key, ht->capacity);
+  LinkedPair *current = ht->storage[h];
+  LinkedPair *previous = NULL;
+  while (current) {
+    if (strcmp(current->key, key) == 0) {
+      // match found, delete node
+      if (previous) {
+        previous->next = current->next;
+      }
+      if (current->next) {
+        current->next = previous;
+      }
+      free(current);
+    } else {
+      previous = current; // I think this will cause problems?
+      current = current->next;
+    }
+  }
 }
 
 /*
