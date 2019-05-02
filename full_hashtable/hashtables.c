@@ -90,34 +90,28 @@ HashTable *create_hash_table(int capacity)
  */
 void hash_table_insert(HashTable *ht, char *key, char *value)
 {
-  printf("in insert method\n");
-  printf("insert key: %s\n", key);
   unsigned int h = hash(key, ht->capacity);
-  printf("hashed index is %d\n", h);
-  LinkedPair *pair = create_pair(key, value);
   if (ht->storage[h] == NULL) {
-    // index is empty
-    printf("storage is null\n");
-    ht->storage[h] = pair;
+    // index is empty, add pair here
+    ht->storage[h] = create_pair(key, value);
   } else {
     // index is not empty, traverse list looking for key or NULL next
     LinkedPair *current = ht->storage[h];
-    printf("current:\n");
-    printf("\tkey: %s\n", current->key);
-    printf("\tvalue: %s\n", current->value);
-    printf("\tnext: %p\n", current->next);
     while (current) {
       if (strcmp(current->key, key) == 0) {
+        /* if key matches, overwrite value. previously I just replaced the current value, which
+        caused a memory leak. is there another way to do this? */
+        free(current->value);
         current->value = strdup(value);
-        destroy_pair(pair);
         break;
       }
       if (current->next == NULL) {
         // if we've reached the end of the list, add our new pair
-        current->next = pair;
+        current->next = create_pair(key, value);
         break;
       } 
        else {
+         // if a match is not found, move on to the next node
         current = current->next;
       }
     }
@@ -140,44 +134,27 @@ void hash_table_remove(HashTable *ht, char *key)
   int found = 0;
   while (current && !found) {
     if (strcmp(current->key, key) == 0) {
+      // we've found a match, set found to exit loop
       found = 1;
     } else {
+      // otherwise, keep moving down the line
       previous = current;
       current = current->next;
     }
   }
 
   if (found) {
-    printf("found\n");
     if (previous) {
+      // if we're not at the head, update the previous node's next pointer
       previous->next = current->next;
     }
     if (!previous) {
+      // if we're at the head, add the node here
       ht->storage[h] = current->next;
     }
-    /* LinkedPair *pair_to_delete = current; */
-    destroy_pair(current); // do i need to make a copy?
+    destroy_pair(previous);
+    destroy_pair(current);
   }
-  /*
-  while (current) {
-    if (strcmp(current->key, key) == 0) {
-      // match found, delete node
-      if (previous) {
-        previous->next = current->next;
-      }
-    //  if (current->next) {
-   //     current->next = previous;
-  //    }
-      current->key = NULL;
-      current->value = NULL;
- //     current->next = NULL;
-//      destroy_pair(current);
-    } else {
-      previous = current; // I think this will cause problems?
-      current = current->next;
-    }
-  }
-*/
 }
 
 /*
@@ -190,24 +167,19 @@ void hash_table_remove(HashTable *ht, char *key)
  */
 char *hash_table_retrieve(HashTable *ht, char *key)
 {
-  printf("in retrieval, key is %s\n", key);
   unsigned int h = hash(key, ht->capacity);
-  printf("hash is %d\n", h);
   LinkedPair *current;
+  // if the node is null, we'll drop to the end of the function and return null
   if (ht->storage[h] != NULL) {
-    printf("not null\n");
-    printf("key: %s, val: %s\n", ht->storage[h]->key, ht->storage[h]->value);
     current = ht->storage[h];
-  } else {
-    return NULL;
-  }
-  printf("pair initialized. key: %s, value: %s\n", current->key, current->value);
-  while (current) {
-    if (strcmp(current->key, key) == 0) {
-      return current->value;
-    } else {
-      current = current->next;
-      printf("moved to next node. key: %s, value: %s\n", current->key, current->value);
+    while (current) {
+      // traverse the list looking for the value
+      if (strcmp(current->key, key) == 0) {
+        return current->value;
+      } else {
+        // if this node is not a match, move on to the next one
+        current = current->next;
+      }
     }
   }
   return NULL;
@@ -229,22 +201,19 @@ void destroy_hash_table(HashTable *ht)
       while (current->next != NULL) {
         previous = current;
         current = current->next;
-        /* free(previous); */
         destroy_pair(previous);
       }
       destroy_pair(current);
-      ht->storage[i] = NULL; // i don't think this is necessary
+      ht->storage[i] = NULL; // i don't remember why this is necessary...
     }
-    /* free(ht->storage[i]); // wait, aren't we not supposed to do this? */
-    /* destroy_pair(ht->storage[i]); */
-    // if not, traverse list and free each pair
-
+    destroy_pair(ht->storage[i]);
   }
+
   // free storage;
   free(ht->storage);
+
   // free ht
   free(ht);
-
 }
 
 /*
@@ -257,18 +226,16 @@ void destroy_hash_table(HashTable *ht)
  */
 HashTable *hash_table_resize(HashTable *ht)
 {
-  // initialize new ht
+  // initialize new ht with double capacity
   HashTable *new_ht = malloc(sizeof(HashTable));
   new_ht->capacity = ht->capacity * 2;
   new_ht->storage = calloc(new_ht->capacity, sizeof(LinkedPair));
 
-  printf("new table initialized\n");
   // loop through every index in old table
   for (int i = 0; i < ht->capacity; i++) {
     // if it is not empty, traverse list
     LinkedPair *current = ht->storage[i];
     while (current) {
-      printf("in while loop, current node at %p\n", current);
       // rehash every pair and store in new table
       hash_table_insert(new_ht, current->key, current->value);
       current = current->next;
@@ -276,7 +243,7 @@ HashTable *hash_table_resize(HashTable *ht)
   }
 
   // destroy old table
-  free(ht);
+  destroy_hash_table(ht);
   return new_ht;
 }
 
@@ -284,7 +251,6 @@ HashTable *hash_table_resize(HashTable *ht)
 #ifndef TESTING
 int main(void)
 {
-  /*
   struct HashTable *ht = create_hash_table(2);
 
   hash_table_insert(ht, "line_1", "Tiny hash table\n");
@@ -301,31 +267,6 @@ int main(void)
   int new_capacity = ht->capacity;
 
   printf("\nResizing hash table from %d to %d.\n", old_capacity, new_capacity);
-  */
-
-    struct HashTable *ht = create_hash_table(8);
-hash_table_insert(ht, "key-0", "val-0");
-    hash_table_insert(ht, "key-1", "val-1");
-    hash_table_insert(ht, "key-2", "val-2");
-    hash_table_insert(ht, "key-3", "val-3");
-    hash_table_insert(ht, "key-4", "val-4");
-    hash_table_insert(ht, "key-5", "val-5");
-    hash_table_insert(ht, "key-6", "val-6");
-    hash_table_insert(ht, "key-7", "val-7");
-    hash_table_insert(ht, "key-8", "val-8");
-    hash_table_insert(ht, "key-9", "val-9");
-
-    hash_table_insert(ht, "key-0", "new-val-0");
-    hash_table_insert(ht, "key-1", "new-val-1");
-    hash_table_insert(ht, "key-2", "new-val-2");
-    hash_table_insert(ht, "key-3", "new-val-3");
-    hash_table_insert(ht, "key-4", "new-val-4");
-    hash_table_insert(ht, "key-5", "new-val-5");
-    hash_table_insert(ht, "key-6", "new-val-6");
-    hash_table_insert(ht, "key-7", "new-val-7");
-    hash_table_insert(ht, "key-8", "new-val-8");
-    hash_table_insert(ht, "key-9", "new-val-9");
-    printf(hash_table_retrieve(ht, "key-0"));
 
   destroy_hash_table(ht);
 
