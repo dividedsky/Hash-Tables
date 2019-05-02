@@ -75,7 +75,7 @@ HashTable *create_hash_table(int capacity)
 {
   HashTable *ht = malloc(sizeof(HashTable));
   ht->capacity = capacity;
-  ht->storage = calloc(capacity, sizeof(LinkedPair));
+  ht->storage = calloc(capacity, sizeof(LinkedPair *));
   return ht;
 }
 
@@ -91,6 +91,7 @@ HashTable *create_hash_table(int capacity)
 void hash_table_insert(HashTable *ht, char *key, char *value)
 {
   printf("in insert method\n");
+  printf("insert key: %s\n", key);
   unsigned int h = hash(key, ht->capacity);
   printf("hashed index is %d\n", h);
   LinkedPair *pair = create_pair(key, value);
@@ -112,9 +113,11 @@ void hash_table_insert(HashTable *ht, char *key, char *value)
         break;
       } 
       if (strcmp(current->key, key) == 0) {
-        current->value = value;
-        printf("break!\n");
+        current->value = strdup(value);
+        destroy_pair(pair);
         break;
+      } else {
+        current = current->next;
       }
     }
   }
@@ -142,7 +145,7 @@ void hash_table_remove(HashTable *ht, char *key)
       if (current->next) {
         current->next = previous;
       }
-      free(current);
+      destroy_pair(current);
     } else {
       previous = current; // I think this will cause problems?
       current = current->next;
@@ -184,23 +187,28 @@ void destroy_hash_table(HashTable *ht)
 {
   // loop through all indexes
   for (int i = 0; i < ht->capacity; i++) {
-    // if the index is empty, free it
-    if (ht->storage[i] != NULL) {
+    // if the index is not empty, traverse the list and free everything
+    if (ht->storage[i]) {
       LinkedPair *current = ht->storage[i];
       LinkedPair *previous;
       while (current->next != NULL) {
         previous = current;
         current = current->next;
-        free(previous);
+        /* free(previous); */
+        destroy_pair(previous);
       }
-      free(current);
+      destroy_pair(current);
+      ht->storage[i] = NULL; // i don't think this is necessary
     }
-    free(ht->storage[i]); // wait, aren't we not supposed to do this?
-
+    /* free(ht->storage[i]); // wait, aren't we not supposed to do this? */
+    /* destroy_pair(ht->storage[i]); */
     // if not, traverse list and free each pair
+
   }
   // free storage;
+  free(ht->storage);
   // free ht
+  free(ht);
 
 }
 
@@ -217,18 +225,23 @@ HashTable *hash_table_resize(HashTable *ht)
   // initialize new ht
   HashTable *new_ht = malloc(sizeof(HashTable));
   new_ht->capacity = ht->capacity * 2;
-  new_ht->storage = malloc(new_ht->capacity * sizeof(LinkedPair));
+  new_ht->storage = calloc(new_ht->capacity, sizeof(LinkedPair));
 
+  printf("new table initialized\n");
   // loop through every index in old table
   for (int i = 0; i < ht->capacity; i++) {
     // if it is not empty, traverse list
-    while (ht->storage[i]) {
+    LinkedPair *current = ht->storage[i];
+    while (current) {
+      printf("in while loop, current node at %p\n", current);
       // rehash every pair and store in new table
-      hash_table_insert(new_ht, ht->storage[i]->key, ht->storage[i]->value);
+      hash_table_insert(new_ht, current->key, current->value);
+      current = current->next;
     }
   }
 
   // destroy old table
+  free(ht);
   return new_ht;
 }
 
@@ -241,6 +254,7 @@ int main(void)
   hash_table_insert(ht, "line_1", "Tiny hash table\n");
   hash_table_insert(ht, "line_2", "Filled beyond capacity\n");
   hash_table_insert(ht, "line_3", "Linked list saves the day!\n");
+  hash_table_insert(ht, "line_3", "new: Linked list saves the day!\n");
 
   printf("%s", hash_table_retrieve(ht, "line_1"));
   printf("%s", hash_table_retrieve(ht, "line_2"));
