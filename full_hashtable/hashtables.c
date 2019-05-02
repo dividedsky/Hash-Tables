@@ -137,21 +137,47 @@ void hash_table_remove(HashTable *ht, char *key)
   unsigned int h = hash(key, ht->capacity);
   LinkedPair *current = ht->storage[h];
   LinkedPair *previous = NULL;
+  int found = 0;
+  while (current && !found) {
+    if (strcmp(current->key, key) == 0) {
+      found = 1;
+    } else {
+      previous = current;
+      current = current->next;
+    }
+  }
+
+  if (found) {
+    printf("found\n");
+    if (previous) {
+      previous->next = current->next;
+    }
+    if (!previous) {
+      ht->storage[h] = current->next;
+    }
+    /* LinkedPair *pair_to_delete = current; */
+    destroy_pair(current); // do i need to make a copy?
+  }
+  /*
   while (current) {
     if (strcmp(current->key, key) == 0) {
       // match found, delete node
       if (previous) {
         previous->next = current->next;
       }
-      if (current->next) {
-        current->next = previous;
-      }
-      destroy_pair(current);
+    //  if (current->next) {
+   //     current->next = previous;
+  //    }
+      current->key = NULL;
+      current->value = NULL;
+ //     current->next = NULL;
+//      destroy_pair(current);
     } else {
       previous = current; // I think this will cause problems?
       current = current->next;
     }
   }
+*/
 }
 
 /*
