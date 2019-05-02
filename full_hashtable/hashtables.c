@@ -107,16 +107,17 @@ void hash_table_insert(HashTable *ht, char *key, char *value)
     printf("\tvalue: %s\n", current->value);
     printf("\tnext: %p\n", current->next);
     while (current) {
+      if (strcmp(current->key, key) == 0) {
+        current->value = strdup(value);
+        destroy_pair(pair);
+        break;
+      }
       if (current->next == NULL) {
         // if we've reached the end of the list, add our new pair
         current->next = pair;
         break;
       } 
-      if (strcmp(current->key, key) == 0) {
-        current->value = strdup(value);
-        destroy_pair(pair);
-        break;
-      } else {
+       else {
         current = current->next;
       }
     }
@@ -163,9 +164,17 @@ void hash_table_remove(HashTable *ht, char *key)
  */
 char *hash_table_retrieve(HashTable *ht, char *key)
 {
-  printf("in retrieval\n");
+  printf("in retrieval, key is %s\n", key);
   unsigned int h = hash(key, ht->capacity);
-  LinkedPair *current = ht->storage[h];
+  printf("hash is %d\n", h);
+  LinkedPair *current;
+  if (ht->storage[h] != NULL) {
+    printf("not null\n");
+    printf("key: %s, val: %s\n", ht->storage[h]->key, ht->storage[h]->value);
+    current = ht->storage[h];
+  } else {
+    return NULL;
+  }
   printf("pair initialized. key: %s, value: %s\n", current->key, current->value);
   while (current) {
     if (strcmp(current->key, key) == 0) {
@@ -249,6 +258,7 @@ HashTable *hash_table_resize(HashTable *ht)
 #ifndef TESTING
 int main(void)
 {
+  /*
   struct HashTable *ht = create_hash_table(2);
 
   hash_table_insert(ht, "line_1", "Tiny hash table\n");
@@ -265,6 +275,31 @@ int main(void)
   int new_capacity = ht->capacity;
 
   printf("\nResizing hash table from %d to %d.\n", old_capacity, new_capacity);
+  */
+
+    struct HashTable *ht = create_hash_table(8);
+hash_table_insert(ht, "key-0", "val-0");
+    hash_table_insert(ht, "key-1", "val-1");
+    hash_table_insert(ht, "key-2", "val-2");
+    hash_table_insert(ht, "key-3", "val-3");
+    hash_table_insert(ht, "key-4", "val-4");
+    hash_table_insert(ht, "key-5", "val-5");
+    hash_table_insert(ht, "key-6", "val-6");
+    hash_table_insert(ht, "key-7", "val-7");
+    hash_table_insert(ht, "key-8", "val-8");
+    hash_table_insert(ht, "key-9", "val-9");
+
+    hash_table_insert(ht, "key-0", "new-val-0");
+    hash_table_insert(ht, "key-1", "new-val-1");
+    hash_table_insert(ht, "key-2", "new-val-2");
+    hash_table_insert(ht, "key-3", "new-val-3");
+    hash_table_insert(ht, "key-4", "new-val-4");
+    hash_table_insert(ht, "key-5", "new-val-5");
+    hash_table_insert(ht, "key-6", "new-val-6");
+    hash_table_insert(ht, "key-7", "new-val-7");
+    hash_table_insert(ht, "key-8", "new-val-8");
+    hash_table_insert(ht, "key-9", "new-val-9");
+    printf(hash_table_retrieve(ht, "key-0"));
 
   destroy_hash_table(ht);
 
