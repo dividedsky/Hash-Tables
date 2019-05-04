@@ -70,7 +70,9 @@ unsigned int hash(char *str, int max)
  ****/
 BasicHashTable *create_hash_table(int capacity)
 {
-  BasicHashTable *ht;
+  BasicHashTable *ht = malloc(sizeof(BasicHashTable));
+  ht->capacity = capacity;
+  ht->storage = calloc(capacity,  sizeof(Pair));
 
   return ht;
 }
@@ -84,7 +86,16 @@ BasicHashTable *create_hash_table(int capacity)
  ****/
 void hash_table_insert(BasicHashTable *ht, char *key, char *value)
 {
-
+  unsigned int h = hash(key, ht->capacity);
+  printf("h is %p\n", ht->storage[h]);
+  if (ht->storage[h] != NULL) {
+    printf("WARNING: overwriting %s with %s\n", ht->storage[h]->value, value);
+  }
+  Pair *p = create_pair(key, value);
+  printf("pair created\n");
+  printf("pair's key is %s\n", p->key);
+  printf("pair's value is %s\n", p->value);
+  ht->storage[h] = p;
 }
 
 /****
@@ -94,6 +105,14 @@ void hash_table_insert(BasicHashTable *ht, char *key, char *value)
  ****/
 void hash_table_remove(BasicHashTable *ht, char *key)
 {
+  printf("in removal\n");
+  unsigned int h = hash(key, ht->capacity);
+  printf("h is %p\n", ht->storage[h]);
+  printf("key is %s\n", ht->storage[h]->key);
+  printf("value is %s\n", ht->storage[h]->value);
+  destroy_pair(ht->storage[h]);
+  /* free(ht->storage[h]); */
+  ht->storage[h] = NULL; // is there another way to do this?
 
 }
 
@@ -104,7 +123,16 @@ void hash_table_remove(BasicHashTable *ht, char *key)
  ****/
 char *hash_table_retrieve(BasicHashTable *ht, char *key)
 {
-  return NULL;
+  unsigned int h = hash(key, ht->capacity);
+  printf("in retrieval\n");
+  printf("h is %p\n", ht->storage[h]);
+  if (ht->storage[h] == NULL) {
+    return NULL;
+  } else {
+    printf("key is %s\n", ht->storage[h]->key);
+    printf("value is %s\n", ht->storage[h]->value);
+    return ht->storage[h]->value;
+  }
 }
 
 /****
@@ -114,7 +142,17 @@ char *hash_table_retrieve(BasicHashTable *ht, char *key)
  ****/
 void destroy_hash_table(BasicHashTable *ht)
 {
+  // free all pairs in storage
+  for (int i = 0; i < ht->capacity; i++) {
+    if (ht->storage[i] != NULL)
+      destroy_pair(ht->storage[i]);
+  }
 
+  // free storage
+  free(ht->storage);
+
+  // free ht
+  free(ht);
 }
 
 
@@ -123,7 +161,9 @@ int main(void)
 {
   struct BasicHashTable *ht = create_hash_table(16);
 
+  printf("created\n");
   hash_table_insert(ht, "line", "Here today...\n");
+  printf("inserted\n");
 
   printf("%s", hash_table_retrieve(ht, "line"));
 

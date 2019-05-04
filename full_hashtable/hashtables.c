@@ -73,8 +73,9 @@ unsigned int hash(char *str, int max)
  */
 HashTable *create_hash_table(int capacity)
 {
-  HashTable *ht;
-
+  HashTable *ht = malloc(sizeof(HashTable));
+  ht->capacity = capacity;
+  ht->storage = calloc(capacity, sizeof(LinkedPair *));
   return ht;
 }
 
@@ -89,7 +90,32 @@ HashTable *create_hash_table(int capacity)
  */
 void hash_table_insert(HashTable *ht, char *key, char *value)
 {
-
+  unsigned int h = hash(key, ht->capacity);
+  if (ht->storage[h] == NULL) {
+    // index is empty, add pair here
+    ht->storage[h] = create_pair(key, value);
+  } else {
+    // index is not empty, traverse list looking for key or NULL next
+    LinkedPair *current = ht->storage[h];
+    while (current) {
+      if (strcmp(current->key, key) == 0) {
+        /* if key matches, overwrite value. previously I just replaced the current value, which
+        caused a memory leak. is there another way to do this? */
+        free(current->value);
+        current->value = strdup(value);
+        break;
+      }
+      if (current->next == NULL) {
+        // if we've reached the end of the list, add our new pair
+        current->next = create_pair(key, value);
+        break;
+      } 
+       else {
+         // if a match is not found, move on to the next node
+        current = current->next;
+      }
+    }
+  }
 }
 
 /*
@@ -102,7 +128,33 @@ void hash_table_insert(HashTable *ht, char *key, char *value)
  */
 void hash_table_remove(HashTable *ht, char *key)
 {
+  unsigned int h = hash(key, ht->capacity);
+  LinkedPair *current = ht->storage[h];
+  LinkedPair *previous = NULL;
+  int found = 0;
+  while (current && !found) {
+    if (strcmp(current->key, key) == 0) {
+      // we've found a match, set found to exit loop
+      found = 1;
+    } else {
+      // otherwise, keep moving down the line
+      previous = current;
+      current = current->next;
+    }
+  }
 
+  if (found) {
+    if (previous) {
+      // if we're not at the head, update the previous node's next pointer
+      previous->next = current->next;
+    }
+    if (!previous) {
+      // if we're at the head, add the node here
+      ht->storage[h] = current->next;
+    }
+    destroy_pair(previous);
+    destroy_pair(current);
+  }
 }
 
 /*
@@ -115,6 +167,21 @@ void hash_table_remove(HashTable *ht, char *key)
  */
 char *hash_table_retrieve(HashTable *ht, char *key)
 {
+  unsigned int h = hash(key, ht->capacity);
+  LinkedPair *current;
+  // if the node is null, we'll drop to the end of the function and return null
+  if (ht->storage[h] != NULL) {
+    current = ht->storage[h];
+    while (current) {
+      // traverse the list looking for the value
+      if (strcmp(current->key, key) == 0) {
+        return current->value;
+      } else {
+        // if this node is not a match, move on to the next one
+        current = current->next;
+      }
+    }
+  }
   return NULL;
 }
 
@@ -125,7 +192,28 @@ char *hash_table_retrieve(HashTable *ht, char *key)
  */
 void destroy_hash_table(HashTable *ht)
 {
+  // loop through all indexes
+  for (int i = 0; i < ht->capacity; i++) {
+    // if the index is not empty, traverse the list and free everything
+    if (ht->storage[i]) {
+      LinkedPair *current = ht->storage[i];
+      LinkedPair *previous;
+      while (current->next != NULL) {
+        previous = current;
+        current = current->next;
+        destroy_pair(previous);
+      }
+      destroy_pair(current);
+      ht->storage[i] = NULL; // i don't remember why this is necessary...
+    }
+    destroy_pair(ht->storage[i]);
+  }
 
+  // free storage;
+  free(ht->storage);
+
+  // free ht
+  free(ht);
 }
 
 /*
@@ -138,8 +226,24 @@ void destroy_hash_table(HashTable *ht)
  */
 HashTable *hash_table_resize(HashTable *ht)
 {
-  HashTable *new_ht;
+  // initialize new ht with double capacity
+  HashTable *new_ht = malloc(sizeof(HashTable));
+  new_ht->capacity = ht->capacity * 2;
+  new_ht->storage = calloc(new_ht->capacity, sizeof(LinkedPair));
 
+  // loop through every index in old table
+  for (int i = 0; i < ht->capacity; i++) {
+    // if it is not empty, traverse list
+    LinkedPair *current = ht->storage[i];
+    while (current) {
+      // rehash every pair and store in new table
+      hash_table_insert(new_ht, current->key, current->value);
+      current = current->next;
+    }
+  }
+
+  // destroy old table
+  destroy_hash_table(ht);
   return new_ht;
 }
 
@@ -152,6 +256,7 @@ int main(void)
   hash_table_insert(ht, "line_1", "Tiny hash table\n");
   hash_table_insert(ht, "line_2", "Filled beyond capacity\n");
   hash_table_insert(ht, "line_3", "Linked list saves the day!\n");
+  hash_table_insert(ht, "line_3", "new: Linked list saves the day!\n");
 
   printf("%s", hash_table_retrieve(ht, "line_1"));
   printf("%s", hash_table_retrieve(ht, "line_2"));
